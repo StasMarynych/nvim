@@ -169,10 +169,21 @@ return {
       -- Patch vim.fn.jobstart to inject -derivedDataPath into every xcodebuild call.
       -- This covers build, test, and get_build_settings in one place.
       local orig_jobstart = vim.fn.jobstart
+      local DERIVEDDATA_SUBCOMMANDS = {
+        build = true,
+        test = true,
+        ["build-for-testing"] = true,
+        ["test-without-building"] = true,
+        archive = true,
+      }
       vim.fn.jobstart = function(cmd, opts)
         if type(cmd) == "table" and cmd[1] == "xcodebuild" and not vim.tbl_contains(cmd, "-derivedDataPath") then
-          local derived = vim.fn.getcwd() .. "/.nvim/DerivedData"
-          cmd = vim.list_extend(vim.deepcopy(cmd), { "-derivedDataPath", derived })
+          -- Only inject -derivedDataPath for subcommands that support it
+          local subcommand = cmd[2]
+          if subcommand and DERIVEDDATA_SUBCOMMANDS[subcommand] then
+            local derived = vim.fn.getcwd() .. "/.nvim/DerivedData"
+            cmd = vim.list_extend(vim.deepcopy(cmd), { "-derivedDataPath", derived })
+          end
         end
         return orig_jobstart(cmd, opts)
       end
