@@ -23,7 +23,7 @@ brew install lazygit               # lazygit integration
 ### Install
 
 ```bash
-git clone git@github.com:YOUR_USERNAME/nvim.git ~/.config/nvim
+git clone git@github.com:StasMarynych/nvim.git ~/.config/nvim
 nvim  # lazy.nvim will auto-install all plugins on first launch
 ```
 
