@@ -1,0 +1,14 @@
+# LazyVim dev leftovers
+tt.*
+.tests
+doc/tags
+debug
+.repro
+foo.*
+*.log
+
+# Lazy plugin install dir (plugins are re-installed from config, not committed)
+/lazy-lock.json
+
+# macOS
+.DS_Store
