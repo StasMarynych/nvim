@@ -29,6 +29,7 @@ local function open_resolve_buf()
   vim.wo[0].wrap = false
   vim.wo[0].number = false
   vim.wo[0].relativenumber = false
+  vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, silent = true })
 end
 
 local function resolve_package_dependencies()
@@ -123,15 +124,21 @@ local function run_build_server_config(scheme, cwd, on_exit)
 
   local dir = vim.fn.fnamemodify(project_file, ":h")
   local name = vim.fn.fnamemodify(project_file, ":t:r")
-  local workspace = dir .. "/" .. name .. ".xcworkspace"
-
-  local args
-  if vim.fn.isdirectory(workspace) == 1 then
-    args = { "xcode-build-server", "config", "-scheme", scheme, "-workspace", workspace, "--build_root", cwd .. "/.nvim/DerivedData" }
+  local standalone_workspace = dir .. "/" .. name .. ".xcworkspace"
+  -- xcode-build-server only emits the workspace/project key reliably with -workspace.
+  -- Prefer a standalone .xcworkspace next to the .xcodeproj; fall back to the
+  -- embedded project.xcworkspace inside the .xcodeproj bundle (always present).
+  local workspace
+  if vim.fn.isdirectory(standalone_workspace) == 1 then
+    workspace = standalone_workspace
   else
-    args = { "xcode-build-server", "config", "-scheme", scheme, "-project", project_file, "--build_root", cwd .. "/.nvim/DerivedData" }
+    workspace = project_file .. "/project.xcworkspace"
   end
-  cwd = dir
+
+  local args = { "xcode-build-server", "config", "-scheme", scheme, "-workspace", workspace, "--build_root", cwd .. "/.nvim/DerivedData" }
+  -- Always run from the nvim cwd (repo root) so buildServer.json is written there,
+  -- regardless of whether the .xcodeproj is in a subdirectory (e.g. WidgetToolkitDemo/).
+  -- The workspace path is absolute, so cwd only affects output location.
 
   if bss_progress_handle then
     bss_progress_handle:cancel()
