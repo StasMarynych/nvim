@@ -274,58 +274,6 @@ return {
         end,
       })
 
-      -- Detect crashed tests that the log parser misses.
-      -- Crashes produce no "Test case '...' failed" log lines, so failedTestsCount
-      -- stays 0. Re-query the xcresult and inject crashes into the quickfix list.
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "XcodebuildTestsFinished",
-        callback = function(event)
-          if event.data.cancelled then return end
-
-          local report = require("xcodebuild.project.appdata").report
-          if not report or not report.xcresultFilepath then return end
-          if (report.failedTestsCount or 0) > 0 then return end
-
-          local output = vim.fn.system({
-            "xcrun", "xcresulttool", "get", "test-results", "tests",
-            "--path", report.xcresultFilepath,
-          })
-          if vim.v.shell_error ~= 0 or not output or output == "" then return end
-
-          local ok, decoded = pcall(vim.fn.json_decode, output)
-          if not ok or not decoded or not decoded.testNodes then return end
-
-          local crashes = {}
-          local function walk(node)
-            if node.nodeType == "Test Case" and node.result ~= "Passed" and node.result ~= "Skipped" then
-              local msg = "Crashed"
-              for _, child in ipairs(node.children or {}) do
-                if child.nodeType == "Failure Message" and child.name then
-                  msg = child.name
-                  break
-                end
-              end
-              table.insert(crashes, { text = "[CRASH] " .. (node.name or "?") .. ": " .. msg })
-            end
-            for _, child in ipairs(node.children or {}) do
-              walk(child)
-            end
-          end
-          for _, node in ipairs(decoded.testNodes) do
-            walk(node)
-          end
-
-          if #crashes == 0 then return end
-
-          report.failedTestsCount = #crashes
-          vim.fn.setqflist(crashes, "r")
-          vim.notify(
-            string.format("xcodebuild: %d test(s) crashed", #crashes),
-            vim.log.levels.ERROR
-          )
-        end,
-      })
-
       vim.api.nvim_create_autocmd("User", {
         pattern = { "XcodebuildBuildFinished", "XcodebuildTestsFinished" },
         callback = function(event)
